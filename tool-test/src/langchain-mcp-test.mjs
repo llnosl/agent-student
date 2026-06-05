@@ -5,8 +5,9 @@ import chalk from 'chalk';
 import { HumanMessage, ToolMessage } from '@langchain/core/messages';
 
 const model = new ChatOpenAI({
-  modelName: "qwen-plus",
+  modelName: "deepseek-v4-pro",
   apiKey: process.env.OPENAI_API_KEY,
+  temperature: 0,
   configuration: {
     baseURL: process.env.OPENAI_BASE_URL,
   },
@@ -61,3 +62,4 @@ async function runAgentWithTools(query, maxIterations = 30) {
 }
 
 await runAgentWithTools("查一下用户 002 的信息");
+await mcpClient.close()
