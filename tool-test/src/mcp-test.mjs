@@ -1,8 +1,35 @@
 import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import { ChatOpenAI } from '@langchain/openai';
 import chalk from 'chalk';
 import { HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const logsDir = path.join(__dirname, '..', 'chat-logs');
+
+function saveMessages(query, messages) {
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '-');
+  const sanitizedQuery = query.slice(0, 30).replace(/[\/\\:*?"<>|\s]/g, '_').trim();
+  const filename = `${dateStr}_${timeStr}_${sanitizedQuery}.json`;
+
+  const data = messages.map(msg => ({
+    role: msg._getType(),
+    content: msg.content,
+    ...(msg.tool_calls?.length ? { tool_calls: msg.tool_calls } : {}),
+    ...(msg.tool_call_id ? { tool_call_id: msg.tool_call_id } : {}),
+  }));
+
+  fs.writeFileSync(path.join(logsDir, filename), JSON.stringify(data, null, 2), 'utf-8');
+  console.log(chalk.green(`\n💾 对话记录已保存: chat-logs/${filename}`));
+}
 
 //使用高德mcp
 const model = new ChatOpenAI({
@@ -27,6 +54,12 @@ const mcpClient = new MultiServerMCPClient({
     "amap-maps-streamableHTTP": {
       "url": "https://mcp.amap.com/mcp?key=" + process.env.AMAP_MAPS_API_KEY
     },
+    "media-crawler": {
+      "command": "node",
+      "args": [
+        "/Users/pupu/代码/agent学习/agent-student/tool-test/src/media-crawler-mcp-server.mjs"
+      ]
+    },
   }
 });
 
@@ -46,6 +79,7 @@ async function runAgentWithTools(query, maxIterations = 30) {
     // 检查是否有工具调用
     if (!response.tool_calls || response.tool_calls.length === 0) {
       console.log(`\n✨ AI 最终回复:\n${response.content}\n`);
+      saveMessages(query, messages);
       return response.content;
     }
 
@@ -80,10 +114,11 @@ async function runAgentWithTools(query, maxIterations = 30) {
     }
   }
 
+  saveMessages(query, messages);
   return messages[messages.length - 1].content;
 }
 
 
-await runAgentWithTools("请你找出福州站附近的五家饭店，保存下来放在当前目录下的一个文档里");
+await runAgentWithTools("请你用mcp在小红书平台搜索台江区附近美食 只调用1次无论失败还是成功 将结果保存到当前路径下作为json文件保存");
 
 await mcpClient.close();

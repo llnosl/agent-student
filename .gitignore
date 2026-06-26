@@ -1,0 +1,9 @@
+node_modules/
+.pnpm-store/
+
+# MediaCrawler Python
+MediaCrawler/venv/
+MediaCrawler/data/
+MediaCrawler/browser_data/
+MediaCrawler/__pycache__/
+MediaCrawler/**/__pycache__/
