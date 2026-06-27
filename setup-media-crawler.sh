@@ -7,6 +7,11 @@ git submodule update --init
 cd MediaCrawler
 
 echo ""
+echo "=== 应用 xhshow 兼容性补丁 ==="
+git apply ../xhshow-fix.patch
+echo "补丁已应用"
+
+echo ""
 echo "=== 创建 Python 虚拟环境 ==="
 python3 -m venv venv
 

@@ -119,6 +119,6 @@ async function runAgentWithTools(query, maxIterations = 30) {
 }
 
 
-await runAgentWithTools("请你用mcp在小红书平台搜索台江区附近美食 只调用1次无论失败还是成功 将结果保存到当前路径下作为json文件保存");
+await runAgentWithTools("请你用mcp在小红书搜索台江区附近美食 只调用1次无论失败还是成功 将结果保存到当前路径下作为json文件保存");
 
 await mcpClient.close();

@@ -1,0 +1,56 @@
+diff --git a/media_platform/xhs/playwright_sign.py b/media_platform/xhs/playwright_sign.py
+index 6b28cab..072da99 100644
+--- a/media_platform/xhs/playwright_sign.py
++++ b/media_platform/xhs/playwright_sign.py
+@@ -31,42 +31,7 @@ from urllib.parse import quote
+ from .xhs_sign import get_trace_id
+ 
+ 
+-def _patch_xhshow_a3_hash():
+-    """
+-    修复 xhshow 库 build_payload_array 中 a3_hash 计算的 bug。
+-    xhshow 原实现对所有请求使用 MD5(extract_api_path(content_string)) 计算 a3_hash,
+-    其中 extract_api_path 会同时去掉 "?" 后的查询参数和 "{" 后的 JSON body。
+-    但浏览器的实际行为是:
+-      - POST: a3 使用 MD5(api_path), 即去掉 JSON body 后的路径 → 原实现正确
+-      - GET:  a3 使用 MD5(完整 URL + 查询参数) → 原实现错误, 因为也去掉了查询参数
+-    修复方式: 对 GET 请求(content_string 不含 "{"), 使用完整 content_string 的 MD5;
+-              对 POST 请求(content_string 含 "{"), 保持原始行为。
+-    相关 issue: https://github.com/Cloxl/xhshow/issues/104
+-    """
+-    from xhshow.core.crypto import CryptoProcessor
+-
+-    _original_build = CryptoProcessor.build_payload_array
+-
+-    def _patched_build(self, hex_parameter, a1_value, app_identifier="xhs-pc-web",
+-                       string_param="", timestamp=None, sign_state=None):
+-        payload = _original_build(self, hex_parameter, a1_value, app_identifier,
+-                                  string_param, timestamp, sign_state)
+-        # 仅当 content_string 不含 "{" 时修复 (即 GET 请求)
+-        if "{" not in string_param:
+-            correct_md5_hex = hashlib.md5(string_param.encode("utf-8")).hexdigest()
+-            correct_md5_bytes = [int(correct_md5_hex[i:i + 2], 16) for i in range(0, 32, 2)]
+-            seed_byte = payload[4]
+-            ts_bytes = payload[8:16]
+-            correct_a3_hash = self._custom_hash_v2(list(ts_bytes) + correct_md5_bytes)
+-            for i in range(16):
+-                payload[128 + i] = correct_a3_hash[i] ^ seed_byte
+-        return payload
+-
+-    CryptoProcessor.build_payload_array = _patched_build
+-
+ 
+-# 启动时应用 monkey-patch
+-_patch_xhshow_a3_hash()
+ 
+ 
+ def _build_sign_string(uri: str, data: Optional[Union[Dict, str]] = None, method: str = "POST") -> str:
+@@ -149,7 +114,7 @@ def sign_with_xhshow(
+         d_value = hashlib.md5(content_string.encode("utf-8")).hexdigest()
+ 
+         payload_array = xhshow_client.crypto_processor.build_payload_array(
+-            d_value, a1_value, "xhs-pc-web", content_string, ts
++            d_value, d_value, a1_value, "xhs-pc-web", content_string, ts
+         )
+         xor_result = xhshow_client.crypto_processor.bit_ops.xor_transform_array(payload_array)
+         config = xhshow_client.config
