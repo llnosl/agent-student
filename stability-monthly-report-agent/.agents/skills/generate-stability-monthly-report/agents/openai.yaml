@@ -1,0 +1,4 @@
+interface:
+  display_name: "生成稳定性月报"
+  short_description: "从飞书项目清单批量采集 Kibana 数据并生成月报"
+  default_prompt: "使用 $generate-stability-monthly-report 根据上月飞书月报生成指定月份的稳定性月报。"

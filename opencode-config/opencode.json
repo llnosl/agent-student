@@ -34,7 +34,6 @@
     "websearch": "allow",
     "webfetch": "allow"
   },
-  "model": "openai/gpt-5.5",
   "agent": {
     "relay-deepseek": {
       "description": "Use the relay DeepSeek model through the configured OpenAI-compatible gateway.",

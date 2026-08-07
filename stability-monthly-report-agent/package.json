@@ -1,0 +1,34 @@
+{
+  "name": "stability-monthly-report-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "collect:error": "tsx src/index.ts --collect-error-data",
+    "fix:local-error": "tsx src/index.ts --fix-local-error",
+    "fix:local-errors": "tsx src/index.ts --fix-all-local-errors",
+    "build": "tsc --noEmit"
+  },
+  "scriptNotes": {
+    "save-runs": "通用参数，任意链路需要保存 Agent 思考和工具调用过程时追加 --save-runs。示例：npm run fix:local-error -- --save-runs --service ewms --json-file ./output/2026-07-ewms-service-稳定性错误.json --error-index 0",
+    "dev": "普通对话链路。用法：npm run dev -- \"你的问题\"；保存过程：npm run dev -- --save-runs \"你的问题\"",
+    "collect:error": "链路1：从 Kibana 获取错误数据并保存到 output。若 CDP 不可用，会自动启动 Chrome：/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-address=::1 --remote-debugging-port=9222 --user-data-dir=$HOME/chrome-kibana-automation-profile。用法：npm run collect:error -- --service ewms-service --kibana-url \"https://...\" --cdp-url \"http://[::1]:9222\"；也可在 .env 配置 KIBANA_URL 和 KIBANA_CDP_URL 后省略对应参数；可追加 --save-runs 保存过程",
+    "fix:local-error": "链路2：读取本地 JSON 指定错误并在本地项目修复，回写错误原因和简化操作，然后在终端等待 y/n；y 写入错误知识库，n 直接结束。用法：npm run fix:local-error -- --service ewms --json-file ./output/2026-07-ewms-service-稳定性错误.json --error-index 0；可追加 --save-runs 保存过程",
+    "fix:local-errors": "链路3：读取本地 JSON 全部错误，按确定性指纹去重后在同一项目和分支串行修复，统一验证并回写每条记录。用法：npm run fix:local-errors -- --service ewms --json-file ./output/2026-07-ewms-service-稳定性错误.json；可追加 --save-runs 保存过程"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.2.2",
+    "@langchain/mcp-adapters": "^1.1.3",
+    "@langchain/openai": "latest",
+    "chalk": "^5.6.2",
+    "dotenv": "latest",
+    "langchain": "latest",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}

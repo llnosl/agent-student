@@ -1,0 +1,40 @@
+{
+  "project": "purchase-return-service",
+  "source_url": "https://platform.pupuvip.com/kibana/app/kibana#/discover?_g=(refreshInterval:(pause:!t,value:0),time:(from:now-30d,mode:quick,to:now))&_a=(columns:!(context.exception.exception_type_2,context.exception.exception_type_1,context.request.url,context.exception.exception_type_3,context.release),filters:!(('':(store:appState),meta:(alias:!n,disabled:!f,index:da146470-19e8-11ed-a5dc-216b233bc2d6,key:app_id,negate:!f,params:(query:10000200,type:phrase),type:phrase,value:10000200),query:(match:(app_id:(query:10000200,type:phrase)))),('':(store:appState),meta:(alias:!n,disabled:!f,index:da146470-19e8-11ed-a5dc-216b233bc2d6,key:context.tags.microapp,negate:!f,params:(query:scm,type:phrase),type:phrase,value:scm),query:(match:(context.tags.microapp:(query:scm,type:phrase)))),('':(store:appState),meta:(alias:!n,disabled:!f,index:'2253a6b0-97ac-11ed-b69d-0bce934078b1',key:context.exception.exception_type_1,negate:!f,params:(query:JSError,type:phrase),type:phrase,value:JSError),query:(match:(context.exception.exception_type_1:(query:JSError,type:phrase)))),('':(store:appState),meta:(alias:!n,disabled:!f,index:'2253a6b0-97ac-11ed-b69d-0bce934078b1',key:query,negate:!f,type:custom,value:'%7B%22regexp%22:%7B%22context.request.url%22:%22.*(Transport%7Ctransport%7CReturnCarRecord%7CThirdPartner).*%22%7D%7D'),query:(regexp:(context.request.url:'.*(Transport%7Ctransport%7CReturnCarRecord%7CThirdPartner).*'))),('':(store:appState),meta:(alias:!n,disabled:!f,index:'2253a6b0-97ac-11ed-b69d-0bce934078b1',key:query,negate:!f,type:custom,value:'%7B%22bool%22:%7B%22minimum_should_match%22:1,%22must_not%22:%7B%22regexp%22:%7B%22context.exception.exception_type_3%22:%7B%22value%22:%22.*(Can!'t%20find%20variable:%20func%7CFailed%20to%20fetch%7CLoading%20chunk%7CLoad%20failed).*%22%7D%7D%7D,%22should%22:%5B%7B%22match_phrase%22:%7B%22context.exception.exception_type_2%22:%22TypeError%22%7D%7D,%7B%22match_phrase%22:%7B%22context.exception.exception_type_2%22:%22SyntaxError%22%7D%7D,%7B%22match_phrase%22:%7B%22context.exception.exception_type_2%22:%22RangeError%22%7D%7D,%7B%22match_phrase%22:%7B%22context.exception.exception_type_2%22:%22AggregateError%22%7D%7D,%7B%22match_phrase%22:%7B%22context.exception.exception_type_2%22:%22ReferenceError%22%7D%7D,%7B%22match_phrase%22:%7B%22context.exception.exception_type_2%22:%22UnhandledRejection%22%7D%7D,%7B%22match_phrase%22:%7B%22context.exception.exception_type_2%22:%22ShareComponentError%22%7D%7D,%7B%22match_phrase%22:%7B%22context.exception.exception_type_2%22:%22URIError%22%7D%7D%5D%7D%7D'),query:(bool:(minimum_should_match:1,must_not:(regexp:(context.exception.exception_type_3:(value:'.*(Can!'t%20find%20variable:%20func%7CFailed%20to%20fetch%7CLoading%20chunk%7CLoad%20failed).*'))),should:!((match_phrase:(context.exception.exception_type_2:TypeError)),(match_phrase:(context.exception.exception_type_2:SyntaxError)),(match_phrase:(context.exception.exception_type_2:RangeError)),(match_phrase:(context.exception.exception_type_2:AggregateError)),(match_phrase:(context.exception.exception_type_2:ReferenceError)),(match_phrase:(context.exception.exception_type_2:UnhandledRejection)),(match_phrase:(context.exception.exception_type_2:ShareComponentError)),(match_phrase:(context.exception.exception_type_2:URIError))))))),index:efe220a0-b24f-11f0-9e8a-5545f4fbafdf,interval:auto,query:(language:lucene,query:''),sort:!(_score,desc))",
+  "generated_at": "2026-07-13T15:47:39",
+  "columns": [
+    "Time",
+    "context.exception.exception_type_2",
+    "context.exception.exception_type_1",
+    "context.request.url",
+    "context.exception.exception_type_3",
+    "context.release"
+  ],
+  "total": 3,
+  "errors": [
+    {
+      "Time": "July 8th 2026, 21:28:33.585",
+      "context.exception.exception_type_2": "TypeError",
+      "context.exception.exception_type_1": "JSError",
+      "context.request.url": "https://admin.pupumall.com/Transport/Monitor/RealTimeMonitor",
+      "context.exception.exception_type_3": "Cannot read properties of undefined (reading 'removeEventListener')",
+      "context.release": "-"
+    },
+    {
+      "Time": "July 8th 2026, 22:06:16.541",
+      "context.exception.exception_type_2": "TypeError",
+      "context.exception.exception_type_1": "JSError",
+      "context.request.url": "https://admin.pupumall.com/Transport/Monitor/RealTimeMonitor",
+      "context.exception.exception_type_3": "null is not an object (evaluating 'e._bind._touchStartPos.x')",
+      "context.release": "-"
+    },
+    {
+      "Time": "July 9th 2026, 05:54:29.803",
+      "context.exception.exception_type_2": "TypeError",
+      "context.exception.exception_type_1": "JSError",
+      "context.request.url": "https://admin.pupumall.com/Transport/Monitor/RealTimeMonitor",
+      "context.exception.exception_type_3": "null is not an object (evaluating 'e._bind._touchStartPos.x')",
+      "context.release": "-"
+    }
+  ]
+}

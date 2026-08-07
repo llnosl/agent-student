@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "non-error-promise-rejection-cancel",
+      "errorName": "Non-Error promise rejection captured with value: cancel",
+      "reason": "网络问题导致接口失败后，没有对接口失败进行错误捕获。useRequest 内部触发 promise.reject，或者表格逻辑中直接使用 promise.reject，最终可能抛出 undefined 错误。",
+      "solution": [
+        "如果是表单、表格或业务校验逻辑里主动 reject，不要直接 reject() 或 reject(undefined)，应使用 reject(new BizError(xxx)) 抛出固定错误类型，方便上层解析。",
+        "如果是接口请求失败，需要使用 try/catch 显式捕获错误，并做业务兜底。",
+        "如果使用 useRequest，可以补充 onError 处理，避免请求失败后形成未处理的 promise rejection。"
+      ],
+      "example": "useRequest(api, {\n  onError: () => {},\n});"
+    },
+    {
+      "id": "联邦模块",
+      "errorName": "联邦模块",
+      "reason": "涉及联邦模块的错误往往不在本项目中，可以分析下错误，不需要进行修复",
+      "solution": [
+        "涉及联邦模块，不需要在项目中修复，可以跳过"
+      ],
+      "example": "useRequest(api, {\n  onError: () => {},\n});"
+    },
+    {
+      "id": "non-error-promise-rejection-captured-with-value-undefined-1785135103496",
+      "errorName": "Non-Error promise rejection captured with value: undefined",
+      "reason": "MaterialManagement/index.tsx 中 handleIsCateringRawMaterials 作为 async 函数被 useEffect 调用，内部 await runGetMaterialTaxCategoryModeType() (ahooks runAsync) 在 API 失败时会 reject，但函数没有 try/catch 包裹，useEffect 也不处理 Promise rejection，导致未处理的 rejection 泄漏到全局。",
+      "solution": [
+        "在 handleIsCateringRawMaterials 的 await runGetMaterialTaxCategoryModeType() 调用外层添加 try/catch，catch 中执行 message.error('获取业务模式类型失败') 并 setModeType(undefined)，与已有业务错误处理保持一致。改动仅 MaterialManagement/index.tsx 一处，纯防御性兜底，不改业务逻辑。"
+      ],
+      "source": {
+        "jsonFile": "/Users/pupu/代码/scm-ai/stability-monthly-report-agent/output/2026-07-fresh-product-process-center-稳定性错误.json",
+        "errorIndex": 0,
+        "branch": "f/fitkibanaerror",
+        "confirmedAt": "2026-07-27T06:51:43.497Z"
+      }
+    }
+  ]
+}

@@ -6,10 +6,10 @@ const COLLECTION_NAME = 'ai_diary';
 const VECTOR_DIM = 1024;
 
 const embeddings = new OpenAIEmbeddings({
-  apiKey: process.env.EMBEDDINGS_OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY,
   model: process.env.EMBEDDINGS_MODEL_NAME,
   configuration: {
-    baseURL: process.env.EMBEDDINGS_OPENAI_BASE_URL
+    baseURL: process.env.OPENAI_BASE_URL
   },
   dimensions: VECTOR_DIM
 });
