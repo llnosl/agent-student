@@ -1,0 +1,4 @@
+interface:
+  display_name: "根据错误创建修复分支"
+  short_description: "批量创建项目修复分支，并逐项目确认后记录认可的修复经验"
+  default_prompt: "使用 $create-fix-branch-from-errors 为指定项目创建错误修复分支，全部完成后逐项目向我确认是否写入修复经验。"

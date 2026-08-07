@@ -1,0 +1,11 @@
+{
+  "aliases": {
+    "ewms": "ewms",
+    "fppc-pda-web": "fppc-pda-wap",
+    "fppc-pda-wap": "fppc-pda-wap",
+    "fppc-pda-wab": "fppc-pda-wap",
+    "fresh-producter-center": "fresh-product-process-center",
+    "fresh-product-center": "fresh-product-process-center",
+    "fresh-product-process-center": "fresh-product-process-center"
+  }
+}
