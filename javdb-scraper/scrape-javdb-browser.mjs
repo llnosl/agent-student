@@ -13,6 +13,8 @@
  *
  * 环境变量:
  *   CHROME_PATH        - Chrome 浏览器路径（默认 C:\Program Files\Google\Chrome\Application\chrome.exe）
+ *   JAVDB_PROFILE_DIR  - 持久化浏览器资料目录（默认项目下 .browser-profile）
+ *   CDP_URL            - 普通 Chrome 的远程调试地址（默认 http://127.0.0.1:9222）
  *   HEADLESS           - 设为 1 启用无头模式（默认有界面）
  *   CONFIRM_PAGE       - 设为 0 跳过开始前的确认步骤
  *   MANUAL_WAIT_MS     - 遇到验证页面等待时间毫秒（默认 12000）
@@ -30,6 +32,7 @@
  */
 
 import { mkdir, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import path from "node:path";
@@ -44,9 +47,11 @@ const DEFAULT_URL = "https://javdb.com/actors/1G09?t=s&sort_type=0";
 const BASE_URL = "https://javdb.com";
 const OUTPUT_DIR = path.resolve("output");
 const CHROME_PATH = process.env.CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+const PROFILE_DIR = path.resolve(process.env.JAVDB_PROFILE_DIR || ".browser-profile");
+const CDP_URL = process.env.CDP_URL || "http://127.0.0.1:9222";
 
 const startUrl = process.argv[2] || DEFAULT_URL;
-const maxPages = Number(process.env.MAX_PAGES || "0");
+let maxPages = Number(process.env.MAX_PAGES || "0");
 const concurrency = Number(process.env.CONCURRENCY || "1");
 const translateDelayMs = Number(process.env.TRANSLATE_DELAY_MS || "350");
 const manualWaitMs = Number(process.env.MANUAL_WAIT_MS || "12000");
@@ -62,6 +67,48 @@ if (proxyUrl) {
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function cdpIsReady() {
+  try {
+    const response = await fetch(`${CDP_URL}/json/version`, {
+      signal: AbortSignal.timeout(1000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureNormalChrome() {
+  if (await cdpIsReady()) return;
+
+  const cdp = new URL(CDP_URL);
+  if (!["127.0.0.1", "localhost"].includes(cdp.hostname)) {
+    throw new Error(`CDP_URL 未连接，且不能自动启动非本机 Chrome: ${CDP_URL}`);
+  }
+
+  const args = [
+    `--remote-debugging-port=${cdp.port || "9222"}`,
+    `--user-data-dir=${PROFILE_DIR}`,
+    "--no-first-run",
+    "--no-default-browser-check",
+    startUrl,
+  ];
+  if (proxyUrl) args.unshift(`--proxy-server=${parseProxy(proxyUrl).server}`);
+  if (headless) args.unshift("--headless=new");
+
+  const chrome = spawn(CHROME_PATH, args, {
+    detached: true,
+    stdio: "ignore",
+  });
+  chrome.unref();
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    if (await cdpIsReady()) return;
+    await sleep(500);
+  }
+  throw new Error(`普通 Chrome 已启动，但无法连接 CDP: ${CDP_URL}`);
+}
 
 // ---------- 工具函数 ----------
 
@@ -162,11 +209,11 @@ async function gotoAndHtml(page, url) {
 }
 
 /**
- * 交互式确认：让用户在浏览器中确认页面正确后按回车继续
+ * 交互式确认：让用户确认页面，并询问本次要爬取的页数
  * 适合需要在浏览器中手动操作（如登录）的场景
  */
-async function confirmStartPage(page) {
-  if (!requireConfirm || headless) return;
+async function confirmStartPage(page, defaultMaxPages) {
+  if (!requireConfirm || headless) return defaultMaxPages;
 
   const title = await page.title().catch(() => "");
   const currentUrl = page.url();
@@ -177,10 +224,25 @@ async function confirmStartPage(page) {
 
   const rl = createInterface({ input, output });
   const answer = await rl.question("确认开始爬取？[Enter=开始 / n=取消] ");
-  rl.close();
 
   if (/^n(o)?$/i.test(answer.trim())) {
+    rl.close();
     throw new Error("用户取消爬取");
+  }
+
+  while (true) {
+    const pageAnswer = await rl.question(
+      `请输入要爬取的页数（0=全部，直接回车使用当前值 ${defaultMaxPages}）：`
+    );
+    const value = pageAnswer.trim() === "" ? defaultMaxPages : Number(pageAnswer.trim());
+
+    if (Number.isInteger(value) && value >= 0) {
+      rl.close();
+      console.log(value === 0 ? "将爬取全部页面。" : `将爬取前 ${value} 页。`);
+      return value;
+    }
+
+    console.log("输入无效，请输入 0 或正整数。");
   }
 }
 
@@ -433,18 +495,16 @@ async function mapLimit(items, limit, mapper) {
 async function main() {
   await mkdir(OUTPUT_DIR, { recursive: true });
 
-  // 1. 启动浏览器
-  const browser = await chromium.launch({
-    executablePath: CHROME_PATH,
-    headless,
-    proxy: parseProxy(proxyUrl),
-    args: ["--disable-blink-features=AutomationControlled"]
-  });
-  const context = await browser.newContext({
-    locale: "zh-CN",
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
-  });
-  const page = await context.newPage();
+  // 1. 由普通 Chrome 进程打开持久化资料目录，再通过 CDP 连接。
+  // 不加入 Playwright 启动浏览器时附带的自动化参数；真人验证仍需手动完成。
+  await ensureNormalChrome();
+  const browser = await chromium.connectOverCDP(CDP_URL);
+  const context = browser.contexts()[0];
+  if (!context) throw new Error(`CDP 中没有可用的浏览器上下文: ${CDP_URL}`);
+  const pages = context.pages();
+  const page = pages.find((candidate) => candidate.url().includes("javdb.com")) || pages[0] || await context.newPage();
+  console.log(`Connected to normal Chrome via CDP: ${CDP_URL}`);
+  console.log(`Using persistent browser profile: ${PROFILE_DIR}`);
 
   // 2. 翻页收集所有影片链接
   const seen = new Set();
@@ -461,7 +521,7 @@ async function main() {
 
     // 第一页需要用户确认
     if (pageCount === 1) {
-      await confirmStartPage(page);
+      maxPages = await confirmStartPage(page, maxPages);
       pageUrl = page.url(); // 用户可能在浏览器中跳转到了其他页面
       await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
       html = await page.content();
@@ -552,6 +612,7 @@ async function main() {
   };
 
   await writeFile(outputFile, `${JSON.stringify(output, null, 2)}\n`, "utf8");
+  // 正常关闭专用 Chrome，登录与验证 Cookie 已写入持久化资料目录。
   await browser.close();
   console.log(`Saved ${filteredDetails.length} items to ${outputFile}`);
 }

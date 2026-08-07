@@ -15,7 +15,7 @@
  *     CMD:        set DRY_RUN=0 && node reorganize-folders.mjs "output/xxx.json"
  */
 
-import { readFile, readdir, rename } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename } from "node:fs/promises";
 import path from "node:path";
 
 // ---------- 配置 ----------
@@ -29,6 +29,24 @@ if (!INPUT_FILE) {
 
 const ROOT = process.argv[3] || "F:\\av合集";
 const DRY_RUN = process.env.DRY_RUN !== "0";
+const VIDEO_EXTS = new Set([
+  ".3gp",
+  ".avi",
+  ".flv",
+  ".m2ts",
+  ".m4v",
+  ".mkv",
+  ".mov",
+  ".mp4",
+  ".mpeg",
+  ".mpg",
+  ".rm",
+  ".rmvb",
+  ".ts",
+  ".vob",
+  ".webm",
+  ".wmv",
+]);
 
 // ---------- 工具函数 ----------
 
@@ -110,6 +128,7 @@ async function main() {
     const ext = target.isFile() ? path.extname(currentName) : "";
     const nameForCode = target.isFile() ? path.basename(currentName, ext) : currentName;
     const kind = target.isFile() ? "文件" : "文件夹";
+    const isVideoFile = target.isFile() && VIDEO_EXTS.has(ext.toLowerCase());
 
     // 从文件夹名或根目录文件名提取番号
     const code = extractCode(nameForCode);
@@ -134,22 +153,28 @@ async function main() {
     }
 
     // 构建新名称
-    const newName = `${buildFolderName(code, zh)}${ext}`;
-    const newPath = path.join(ROOT, newName);
+    const newBaseName = buildFolderName(code, zh);
+    const newName = `${newBaseName}${ext}`;
+    const newPath = isVideoFile
+      ? path.join(ROOT, newBaseName, newName)
+      : path.join(ROOT, newName);
 
     // 名称相同则跳过
-    if (currentName === newName) {
+    if (currentName === newName && !isVideoFile) {
       skippedSameName++;
       continue;
     }
 
     console.log(`[匹配] ${kind} ${currentName}`);
-    console.log(`  → ${newName}`);
+    console.log(`  → ${isVideoFile ? path.join(newBaseName, newName) : newName}`);
 
     if (DRY_RUN) {
       renamed++;
     } else {
       try {
+        if (isVideoFile) {
+          await mkdir(path.dirname(newPath), { recursive: true });
+        }
         await rename(currentPath, newPath);
         console.log(`  ✓ 已重命名`);
         renamed++;
