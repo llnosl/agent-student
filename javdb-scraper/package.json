@@ -1,0 +1,16 @@
+{
+  "name": "javdb-scraper",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scrape": "node scrape-javdb.mjs",
+    "scrape:browser": "node scrape-javdb-browser.mjs"
+  },
+  "dependencies": {
+    "cheerio": "^1.1.2",
+    "ollama": "^0.5.0",
+    "playwright-core": "^1.61.1",
+    "undici": "^7.16.0"
+  }
+}
