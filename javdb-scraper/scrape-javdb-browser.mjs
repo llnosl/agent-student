@@ -27,6 +27,7 @@
  * 用法:
  *   node scrape-javdb-browser.mjs [演员页面URL]
  *   node scrape-javdb-browser.mjs "https://javdb.com/actors/1G09?t=s&sort_type=0"
+ *   node scrape-javdb-browser.mjs --single "https://javdb.com/v/详情页ID"
  *
  * 工作流位置: 第 1 步 —— 爬取数据
  */
@@ -50,7 +51,9 @@ const CHROME_PATH = process.env.CHROME_PATH || "C:\\Program Files\\Google\\Chrom
 const PROFILE_DIR = path.resolve(process.env.JAVDB_PROFILE_DIR || ".browser-profile");
 const CDP_URL = process.env.CDP_URL || "http://127.0.0.1:9222";
 
-const startUrl = process.argv[2] || DEFAULT_URL;
+const cliArgs = process.argv.slice(2);
+const singleMode = cliArgs[0] === "--single";
+const startUrl = (singleMode ? cliArgs[1] : cliArgs[0]) || DEFAULT_URL;
 let maxPages = Number(process.env.MAX_PAGES || "0");
 const concurrency = Number(process.env.CONCURRENCY || "1");
 const translateDelayMs = Number(process.env.TRANSLATE_DELAY_MS || "350");
@@ -344,6 +347,43 @@ function actorNames($) {
   return [...new Set(actors)];
 }
 
+/**
+ * 从详情页提取类别标签。
+ * JavDB 的类别行不一定带 .tags 或 .genre 类名，因此同时按字段标题定位。
+ */
+function categoryTags($) {
+  const wanted = new Set(["類別", "类别", "類型", "类型", "Genre", "Genres"]);
+  const tags = [];
+
+  $(".panel-block, .movie-panel-info .item, .video-meta-panel .item, .metadata .item").each((_, el) => {
+    const item = $(el);
+    const label = cleanText(item.find("strong, .label, .title").first().text()).replace(/:|：/g, "");
+    if (!wanted.has(label)) return;
+
+    item.find("a").each((_, a) => {
+      const tag = cleanText($(a).text());
+      if (tag) tags.push(tag);
+    });
+
+    if (tags.length === 0) {
+      const text = cleanText(
+        item.find(".value").text() || item.clone().children("strong,.label,.title").remove().end().text()
+      );
+      tags.push(...text.split(/[、,，/|]+/).map(cleanText).filter(Boolean));
+    }
+
+    return false;
+  });
+
+  // 兼容旧页面中直接使用 .tags/.genre 类名的结构。
+  $(".tags a, .genre a, .panel-block.genre a").each((_, a) => {
+    const tag = cleanText($(a).text());
+    if (tag) tags.push(tag);
+  });
+
+  return [...new Set(tags)];
+}
+
 /** 文件大小字符串转字节数 */
 function sizeToBytes(value) {
   const match = cleanText(value).match(/(\d+(?:\.\d+)?)\s*(TB|TiB|GB|GiB|MB|MiB|KB|KiB)/i);
@@ -442,10 +482,7 @@ function parseDetailPage(html, fallback) {
     studio: fieldValue($, ["片商", "製作商", "制作商", "メーカー"]),
     series: fieldValue($, ["系列"]),
     actors,
-    tags: $(".tags a, .genre a, .panel-block.genre a")
-      .map((_, a) => cleanText($(a).text()))
-      .get()
-      .filter(Boolean),
+    tags: categoryTags($),
     magnet
   };
 }
@@ -495,6 +532,10 @@ async function mapLimit(items, limit, mapper) {
 async function main() {
   await mkdir(OUTPUT_DIR, { recursive: true });
 
+  if (singleMode && !cliArgs[1]) {
+    throw new Error('单条模式缺少详情页 URL。用法：node scrape-javdb-browser.mjs --single "https://javdb.com/v/详情页ID"');
+  }
+
   // 1. 由普通 Chrome 进程打开持久化资料目录，再通过 CDP 连接。
   // 不加入 Playwright 启动浏览器时附带的自动化参数；真人验证仍需手动完成。
   await ensureNormalChrome();
@@ -505,6 +546,56 @@ async function main() {
   const page = pages.find((candidate) => candidate.url().includes("javdb.com")) || pages[0] || await context.newPage();
   console.log(`Connected to normal Chrome via CDP: ${CDP_URL}`);
   console.log(`Using persistent browser profile: ${PROFILE_DIR}`);
+
+  // 单条详情页模式：指定页面一定保存，不执行演员数量或类别过滤。
+  if (singleMode) {
+    console.log(`Fetching single detail: ${startUrl}`);
+    const html = await gotoAndHtml(page, startUrl);
+    const detail = parseDetailPage(html, {
+      code: pickCode(startUrl),
+      originalTitle: "",
+      url: page.url()
+    });
+
+    if (!detail.code && !detail.originalTitle) {
+      throw new Error("当前页面没有解析到影片详情，请确认 URL 指向 JavDB 详情页并已完成登录或真人验证。");
+    }
+
+    const [titleZh, descriptionZh] = await Promise.all([
+      translateToChinese(detail.originalTitle),
+      translateToChinese(detail.originalDescription)
+    ]);
+    const record = {
+      code: detail.code,
+      title: { original: detail.originalTitle, zh: titleZh },
+      description: { original: detail.originalDescription, zh: descriptionZh },
+      releaseDate: detail.releaseDate,
+      duration: detail.duration,
+      director: detail.director,
+      studio: detail.studio,
+      series: detail.series,
+      tags: detail.tags,
+      magnet: detail.magnet?.url || "",
+      magnetInfo: detail.magnet ? {
+        title: detail.magnet.title,
+        size: detail.magnet.size,
+        hasSubtitle: detail.magnet.hasSubtitle
+      } : null,
+      url: detail.url
+    };
+    const outputFile = path.join(
+      OUTPUT_DIR,
+      `${timestampForFilename()}-${sanitizeFilename(detail.code || "single")}-single.json`
+    );
+
+    await writeFile(outputFile, `${JSON.stringify(record, null, 2)}\n`, "utf8");
+    await browser.close();
+    console.log("\n----- 单条影片 JSON（可直接复制到目标 JSON 的 items 数组）-----");
+    console.log(JSON.stringify(record, null, 2));
+    console.log("----- 单条影片 JSON 结束 -----\n");
+    console.log(`Saved single item to ${outputFile}`);
+    return;
+  }
 
   // 2. 翻页收集所有影片链接
   const seen = new Set();
@@ -554,9 +645,18 @@ async function main() {
       const html = await gotoAndHtml(detailPage, movie.url);
       await detailPage.close();
       const detail = parseDetailPage(html, movie);
-      if (detail.actors.length <= 2) {
-        console.log(`Skipping ${detail.code || movie.code || movie.url}: actors ${detail.actors.length} <= 2`);
+      const hasPriorityTag = detail.tags.some((tag) => /多\s*[pｐ]|黑人/iu.test(tag));
+      if (detail.actors.length <= 2 && !hasPriorityTag) {
+        console.log(
+          `Skipping ${detail.code || movie.code || movie.url}: actors ${detail.actors.length} <= 2 and no 多P/黑人 tag`
+        );
         return null;
+      }
+
+      if (detail.actors.length <= 2 && hasPriorityTag) {
+        console.log(
+          `Keeping ${detail.code || movie.code || movie.url}: matched 多P/黑人 tag with ${detail.actors.length} actor(s)`
+        );
       }
 
       const [titleZh, descriptionZh] = await Promise.all([
