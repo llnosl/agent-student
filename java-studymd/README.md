@@ -50,6 +50,10 @@
 1. [MySQL 与关系模型](./06-数据库MySQL/01-MySQL与关系模型.md)
 2. [SQL 基础](./06-数据库MySQL/02-SQL基础.md)
 3. [JDBC 入门](./06-数据库MySQL/03-JDBC入门.md)
+4. [预编译 SQL 与非预编译 SQL](./06-数据库MySQL/04-预编译SQL与非预编译SQL.md)
+5. [MyBatis 入门](./06-数据库MySQL/05-MyBatis入门.md)
+6. [JDBC 与 MyBatis 对比](./06-数据库MySQL/06-JDBC与MyBatis对比.md)
+7. [数据库连接池](./06-数据库MySQL/07-数据库连接池.md)
 
 ## 笔记约定
 
